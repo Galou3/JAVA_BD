@@ -48,5 +48,43 @@ public class EntityManagerImpl {
         }
     }
 
+    public <T> T merge(T entity) {
+        if (!(entity instanceof Club)) {
+            throw new IllegalArgumentException("L'entité n'est pas une instance de Club");
+        }
 
+        Club club = (Club) entity;
+        try (PreparedStatement pst = connection.prepareStatement("UPDATE Club SET fabricant = ?, poids = ? WHERE id = ?")) {
+            pst.setString(1, club.getFabricant());
+            pst.setDouble(2, club.getPoids());
+            pst.setLong(3, club.getId());
+            int affectedRows = pst.executeUpdate();
+
+            if (affectedRows == 0) {
+                throw new SQLException("La mise à jour a échoué, aucune ligne affectée.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Erreur lors de la mise à jour", e);
+        }
+        return entity;
+    }
+
+    public <T> Club find(Class<T> entityClass, Object primaryKey) {
+        Club club = new Club();
+        try {
+            ResultSet result = this.connection
+                    .createStatement(
+                            ResultSet.TYPE_SCROLL_INSENSITIVE,
+                            ResultSet.CONCUR_UPDATABLE
+                    ).executeQuery(
+                            "SELECT * FROM Club WHERE id = " + primaryKey
+                    );
+            if(result.first()) {
+                club = new Club((long)primaryKey, result.getInt("version"), result.getString("fabricant"), result.getDouble("poids"));
+            }
+        } catch(SQLException sqlex) {
+            sqlex.printStackTrace();
+        }
+        return club;
+    }
 }
